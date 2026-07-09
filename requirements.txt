@@ -4,3 +4,4 @@ pymupdf
 azure-search-documents
 streamlit
 python-docx
+fitz
