@@ -1,4 +1,5 @@
 import os
+import uuid
 import fitz
 import streamlit as st
 from openai import AzureOpenAI
@@ -25,7 +26,7 @@ index_name = os.getenv("AZURE_SEARCH_INDEX")
 openai_client = AzureOpenAI(
     api_key=os.getenv("AZURE_OPENAI_KEY"),
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-    api_version=os.getenv("AZURE_OPENAI_API_VERSION")
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION"),
 )
 
 
@@ -56,10 +57,10 @@ if "index_created" not in st.session_state:
 
 # Streamlit UI
 st.title("📄 AskMyDocs")
-st.caption("Upload a file. Ask anything from it.")
+st.caption("Upload your files. Ask anything from them.")
 
 # Step 1 - Upload files
-st.subheader("Step 1 — Upload your file")
+st.subheader("Step 1 — Upload your files")
 
 uploaded_files = st.file_uploader(
     "Choose up to 2 files",
@@ -111,21 +112,14 @@ if uploaded_files:
             for i in range(0, len(text), 1000)
         ]
 
-        # Safe filename for Azure Search document ID
-        safe_filename = (
-            uploaded_file.name
-            .replace(".", "_")
-            .replace(" ", "_")
-        )
-
         # Upload to Azure AI Search
         documents = [
             {
-                "id": f"{safe_filename}_{i}",
+                "id": str(uuid.uuid4()),
                 "content": chunk,
                 "document_name": uploaded_file.name,
             }
-            for i, chunk in enumerate(chunks)
+            for chunk in chunks
         ]
 
         search_client.upload_documents(documents)
