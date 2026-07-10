@@ -4,7 +4,11 @@ import streamlit as st
 from openai import AzureOpenAI
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
-from azure.search.documents.indexes.models import SearchIndex, SimpleField, SearchableField
+from azure.search.documents.indexes.models import (
+    SearchIndex,
+    SimpleField,
+    SearchableField,
+)
 from azure.core.credentials import AzureKeyCredential
 from dotenv import load_dotenv
 from docx import Document
@@ -24,17 +28,18 @@ openai_client = AzureOpenAI(
     api_version=os.getenv("AZURE_OPENAI_API_VERSION")
 )
 
+
 # Create search index
 def create_index():
     index_client = SearchIndexClient(
         endpoint=search_endpoint,
-        credential=AzureKeyCredential(search_key)
+        credential=AzureKeyCredential(search_key),
     )
 
     fields = [
         SimpleField(name="id", type="Edm.String", key=True),
         SearchableField(name="content", type="Edm.String"),
-        SearchableField(name="document_name", type="Edm.String")
+        SearchableField(name="document_name", type="Edm.String"),
     ]
 
     index = SearchIndex(name=index_name, fields=fields)
@@ -48,6 +53,7 @@ if "index_created" not in st.session_state:
     except Exception:
         st.session_state.index_created = True
 
+
 # Streamlit UI
 st.title("📄 AskMyDocs")
 st.caption("Upload a file. Ask anything from it.")
@@ -58,7 +64,7 @@ st.subheader("Step 1 — Upload your file")
 uploaded_files = st.file_uploader(
     "Choose up to 2 files",
     type=["pdf", "docx", "txt", "md"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
 )
 
 if len(uploaded_files) > 2:
@@ -71,7 +77,7 @@ if uploaded_files:
     search_client = SearchClient(
         endpoint=search_endpoint,
         index_name=index_name,
-        credential=AzureKeyCredential(search_key)
+        credential=AzureKeyCredential(search_key),
     )
 
     # Process every uploaded file
@@ -101,16 +107,23 @@ if uploaded_files:
 
         # Split into chunks
         chunks = [
-            text[i:i+1000]
+            text[i:i + 1000]
             for i in range(0, len(text), 1000)
         ]
+
+        # Safe filename for Azure Search document ID
+        safe_filename = (
+            uploaded_file.name
+            .replace(".", "_")
+            .replace(" ", "_")
+        )
 
         # Upload to Azure AI Search
         documents = [
             {
-                "id": f"{uploaded_file.name}_{i}",
+                "id": f"{safe_filename}_{i}",
                 "content": chunk,
-                "document_name": uploaded_file.name
+                "document_name": uploaded_file.name,
             }
             for i, chunk in enumerate(chunks)
         ]
@@ -136,7 +149,8 @@ if uploaded_files:
 
         source = (
             results[0]["document_name"]
-            if results else "Unknown"
+            if results
+            else "Unknown"
         )
 
         response = openai_client.chat.completions.create(
@@ -144,14 +158,14 @@ if uploaded_files:
             messages=[
                 {
                     "role": "system",
-                    "content": f"Answer only from this document: {context}"
+                    "content": f"Answer only from this document: {context}",
                 },
                 {
                     "role": "user",
-                    "content": question
-                }
+                    "content": question,
+                },
             ],
-            max_completion_tokens=2000
+            max_completion_tokens=2000,
         )
 
         st.write("**Source Document:**")
@@ -159,4 +173,3 @@ if uploaded_files:
 
         st.write("**Answer:**")
         st.write(response.choices[0].message.content)
-        
